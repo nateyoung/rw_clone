@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
@@ -34,12 +34,12 @@ class TreeViewFilterWindow(Gtk.Window):
         self.add(self.grid)
 
         #Creating the ListStore model
-        self.software_liststore = Gtk.ListStore(str, str, str, str)
+        self.pci_liststore = Gtk.ListStore(str, str, str, str)
         for pci_ref in pci_list:
-            self.software_liststore.append(list(pci_ref))
+            self.pci_liststore.append(list(pci_ref))
 
         #creating the treeview, making it use the filter as a model, and adding the columns
-        self.treeview = Gtk.TreeView(self.software_liststore)
+        self.treeview = Gtk.TreeView(self.pci_liststore)
         for i, column_title in enumerate(["BDF", "Desc","VID", "DID"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(column_title, renderer, text=i)
