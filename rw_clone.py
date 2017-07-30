@@ -80,23 +80,23 @@ class TreeViewFilterWindow(Gtk.Window):
         model = iter.get_selection().get_selected_rows()[0]
         iter1 = model.get_iter(path)
         pci_bdf = model.get_value(iter1,0)
-        print(pci_bdf)
-        print(path)
-
-        global active_dev
-
-        active_dev = pci_bdf
+        bus = pci_bdf.split(':')[0]
+        dev = pci_bdf.split('.')[0].split(':')[1]
+        fun = pci_bdf.split('.')[1]
+        # print('bus: %s dev: %s fun: %s' % (bus,dev,fun))
+        # print(pci_bdf)
+        # print(path)
 
         textview.get_buffer().set_text('')
         cmd = subprocess.Popen('lspci -vvv -s %s' % pci_bdf, shell=True, stdout=subprocess.PIPE)
         for line in cmd.stdout:
             textview.get_buffer().insert_at_cursor(line.decode('ascii'))
 
-        configEditor = configSpaceEditWindow(pci_bdf)
+        configEditor = configSpaceEditWindow(pci_bdf, bus, dev, fun)
 
 class configSpaceEditWindow(Gtk.Window):
 
-    def __init__(self,activeDevice):
+    def __init__(self,activeDevice, bus, dev, fun):
         Gtk.Window.__init__(self, title="Edit PCI config space - Device %s" % activeDevice)
         self.set_border_width(10)
         self.resize(1200,400)
@@ -109,8 +109,6 @@ class configSpaceEditWindow(Gtk.Window):
 
         #Creating the ListStore model
         self.int_liststore = Gtk.ListStore(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str)
-        # self.int_liststore.append([1,2,3,4])
-        # self.int_liststore.append(('10:', '21', 'd0', '00', '00', '00', '00', '40', 'f0', '08', '00', '80', 'f0', '00', '00', '00', '00'))
         for item in self.getConfigSpace(activeDevice):
             self.int_liststore.append(item)
 
@@ -119,6 +117,12 @@ class configSpaceEditWindow(Gtk.Window):
         for i, column_title in enumerate(["offset","0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(column_title, renderer, text=i)
+
+            # if not offset column, make cell editable
+            if i!=0:
+                renderer.connect('edited', self.cell_edited_callback, i, bus, dev, fun)
+                renderer.set_property('editable', True)
+
             self.treeview.append_column(column)
 
         #setting up the layout, putting the treeview in a scrollwindow
@@ -127,9 +131,20 @@ class configSpaceEditWindow(Gtk.Window):
         self.grid.attach(self.scrollable_treelist, 0, 0, 8, 10)
         self.scrollable_treelist.add(self.treeview)
 
+        # set up listener for click
+        self.treeview.connect("row-activated", self.on_device_selected)
+
         self.getConfigSpace(activeDevice)
 
         self.show_all()
+
+    def cell_edited_callback(configSpaceEditWindow, CellRendererText, row, new_text, col, bus, dev, fun):
+        orig_text = CellRendererText.get_property('text')
+        # print(configSpaceEditWindow)
+        # print(CellRendererText)
+        if orig_text != new_text :
+            offset = (int(row)*16) + (col-1)
+            print('write to BDF %s:%s.%s, offset 0x%02X from %s to %s' % (bus,dev,fun,offset,orig_text,new_text))
 
     def getConfigSpace( self, activeDevice):
         cmd = subprocess.Popen('lspci -xxxx -s %s' % activeDevice, shell=True, stdout=subprocess.PIPE)
@@ -145,6 +160,18 @@ class configSpaceEditWindow(Gtk.Window):
 
         # throw away first row
         return int_list[1:]
+
+    def on_device_selected(treeview, iter, path, user_data):
+        model = iter.get_selection().get_selected_rows()[0]
+        iter1 = model.get_iter(path)
+        pci_bdf = model.get_value(iter1,0)
+        bus = pci_bdf.split(':')[0]
+        dev = pci_bdf.split('.')[0].split(':')[1]
+        fun = pci_bdf.split('.')[1]
+        # print('bus: %s dev: %s fun: %s' % (bus,dev,fun))
+
+
+
 
 # instantiate GUI
 win = TreeViewFilterWindow()
