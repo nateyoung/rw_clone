@@ -48,7 +48,7 @@ class TreeViewFilterWindow(Gtk.Window):
 
         # set up listener for click
         self.treeview.connect("row-activated", self.on_device_selected)
-        self.treeview.connect("cursor-changed", self.on_device_changed)
+        # self.treeview.connect("cursor-changed", self.on_device_changed)
 
         #setting up the layout, putting the treeview in a scrollwindow
         self.scrollable_treelist = Gtk.ScrolledWindow()
@@ -62,8 +62,8 @@ class TreeViewFilterWindow(Gtk.Window):
         self.grid.attach(textview,0,5,8,5)
         self.show_all()
 
-    def on_device_changed(path, user_data):
-        print()
+    # def on_device_changed(path, user_data):
+        # print()
         # print(path)
         # print(user_data)
         # selection = user_data.get_selection()
