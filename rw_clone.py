@@ -88,16 +88,16 @@ class TreeViewFilterWindow(Gtk.Window):
         # print(path)
 
         textview.get_buffer().set_text('')
-        cmd = subprocess.Popen('lspci -vvv -s %s' % pci_bdf, shell=True, stdout=subprocess.PIPE)
+        cmd = subprocess.Popen('lspci -vvv -s %s:%s.%s' % (bus,dev,fun), shell=True, stdout=subprocess.PIPE)
         for line in cmd.stdout:
             textview.get_buffer().insert_at_cursor(line.decode('ascii'))
 
-        configEditor = configSpaceEditWindow(pci_bdf, bus, dev, fun)
+        configEditor = configSpaceEditWindow(bus, dev, fun)
 
 class configSpaceEditWindow(Gtk.Window):
 
-    def __init__(self,activeDevice, bus, dev, fun):
-        Gtk.Window.__init__(self, title="Edit PCI config space - Device %s" % activeDevice)
+    def __init__(self, bus, dev, fun):
+        Gtk.Window.__init__(self, title="Edit PCI config space - Device %s:%s.%s" % (bus,dev,fun))
         self.set_border_width(10)
         self.resize(1200,400)
 
@@ -109,8 +109,9 @@ class configSpaceEditWindow(Gtk.Window):
 
         #Creating the ListStore model
         self.int_liststore = Gtk.ListStore(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str)
-        for item in self.getConfigSpace(activeDevice):
-            self.int_liststore.append(item)
+
+        # populate with data
+        self.populate(bus,dev,fun)
 
         #creating the treeview, making it use the filter as a model, and adding the columns
         self.treeview = Gtk.TreeView(self.int_liststore)
@@ -134,9 +135,12 @@ class configSpaceEditWindow(Gtk.Window):
         # set up listener for click
         self.treeview.connect("row-activated", self.on_device_selected)
 
-        self.getConfigSpace(activeDevice)
-
         self.show_all()
+
+    def populate(self,bus,dev,fun):
+        self.int_liststore.clear()
+        for item in self.getConfigSpace(bus,dev,fun):
+            self.int_liststore.append(item)
 
     def cell_edited_callback(configSpaceEditWindow, CellRendererText, row, new_text, col, bus, dev, fun):
         orig_text = CellRendererText.get_property('text')
@@ -145,9 +149,13 @@ class configSpaceEditWindow(Gtk.Window):
         if orig_text != new_text :
             offset = (int(row)*16) + (col-1)
             print('write to BDF %s:%s.%s, offset 0x%02X from %s to %s' % (bus,dev,fun,offset,orig_text,new_text))
+            cmd = subprocess.Popen('xxd /sys/devices/pci0000:%s/0000:%s:%s.%s/config' % (bus,bus,dev,fun), shell=True, stdout=subprocess.PIPE)
+            for line in cmd.stdout:
+                print(line.decode('ascii'))
 
-    def getConfigSpace( self, activeDevice):
-        cmd = subprocess.Popen('lspci -xxxx -s %s' % activeDevice, shell=True, stdout=subprocess.PIPE)
+
+    def getConfigSpace( self, bus, dev, fun):
+        cmd = subprocess.Popen('lspci -xxxx -s %s:%s.%s' % (bus,dev,fun), shell=True, stdout=subprocess.PIPE)
         # list to store pci devices
         int_list = []
 
